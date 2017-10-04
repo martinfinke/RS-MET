@@ -72,6 +72,13 @@ void AudioModule::setBeatsPerMinute(double newBpm)
     childModules[i]->setBeatsPerMinute(newBpm);
 }
 
+void AudioModule::setPlayHeadInfo(AudioPlayHead::CurrentPositionInfo info)
+{
+  ScopedLock scopedLock(*lock);
+  for (int i = 0; i < (int)childModules.size(); i++)
+    childModules[i]->setPlayHeadInfo(info);
+}
+
 void AudioModule::setModuleName(const juce::String &newName)
 {
   moduleName = newName;

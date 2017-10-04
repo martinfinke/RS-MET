@@ -275,6 +275,7 @@ void AudioPluginWithMidiIn::processBlock(AudioBuffer<double> &buffer, MidiBuffer
       if( info.bpm <= 0.0 )
         info.bpm = 120.0;  // fallback value when nothing meaningful is passed
       wrappedAudioModule->setBeatsPerMinute(info.bpm);
+      wrappedAudioModule->setPlayHeadInfo(info);
     }
 
     if( wrappedAudioModule->getTriggerInterval() != 0.0 )

@@ -83,6 +83,9 @@ public:
   /** Override this to set the tempo in bpm for synced modules. */
   virtual void setBeatsPerMinute(double newBpm);
 
+  /** Override thsi to set the playhead information. */
+  virtual void setPlayHeadInfo(AudioPlayHead::CurrentPositionInfo info);
+
   /** Sets up the name for this AudioModule. */
   virtual void setModuleName(const juce::String& newName);
 
@@ -267,6 +270,8 @@ public:
 
   /** Flag to indicate that this module needs tempo sync information (current BPM). */
   bool wantsTempoSyncInfo = true;  // why public?
+
+  juce::AudioPlayHead::CurrentPositionInfo playheadInfo;
 
 protected:
 
