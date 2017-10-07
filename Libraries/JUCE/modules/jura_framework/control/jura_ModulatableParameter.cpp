@@ -58,6 +58,14 @@ ModulationSource::~ModulationSource()
   ModulationParticipant::deRegisterModulationSource(this);
 }
 
+juce::String ModulationSource::getModulationSourceDisplayName() const
+{ 
+  if(displayName == "")
+    return modSourceName;
+  else
+    return displayName;
+}
+
 //-------------------------------------------------------------------------------------------------
 
 ModulationTarget::~ModulationTarget() 
@@ -77,7 +85,7 @@ void ModulationTarget::removeModulationSource(ModulationSource* source)
     modManager->removeConnection(source, this);
 }
 
-bool ModulationTarget::isConnectedTo(ModulationSource* source)
+bool ModulationTarget::isConnectedTo(ModulationSource* source) const
 {
   if(modManager)
     return modManager->isConnected(source, this);
@@ -91,7 +99,7 @@ ModulationConnection* ModulationTarget::getConnectionTo(ModulationSource* source
   return nullptr;
 }
 
-std::vector<ModulationSource*> ModulationTarget::getConnectedSources()
+std::vector<ModulationSource*> ModulationTarget::getConnectedSources() const
 {
   std::vector<ModulationSource*> result;
   if(modManager)
@@ -113,7 +121,7 @@ std::vector<ModulationSource*> ModulationTarget::getConnectedSources()
   return result;
 }
 
-std::vector<ModulationSource*> ModulationTarget::getDisconnectedSources()
+std::vector<ModulationSource*> ModulationTarget::getDisconnectedSources() const
 {
   std::vector<ModulationSource*> result;
   if(modManager)
@@ -128,7 +136,7 @@ std::vector<ModulationSource*> ModulationTarget::getDisconnectedSources()
   return result;
 }
 
-std::vector<ModulationConnection*> ModulationTarget::getConnections()
+std::vector<ModulationConnection*> ModulationTarget::getConnections() const
 {
   std::vector<ModulationConnection*> result;
   if(modManager)
@@ -144,7 +152,7 @@ std::vector<ModulationConnection*> ModulationTarget::getConnections()
   return result;
 }
 
-bool ModulationTarget::hasModulation()
+bool ModulationTarget::hasModulation() const
 {
   if(modManager){
     const std::vector<ModulationConnection*>& 
@@ -162,9 +170,6 @@ ModulationConnection::ModulationConnection(ModulationSource* _source, Modulation
 {
   source   = _source; 
   target   = _target;
-  //depth    = 0.0;
-  //relative = false;
-  //relative = true;
   relative    = target->isModulationRelativeByDefault();
   sourceValue = &(source->modValue);
   targetValue = &(target->modulatedValue);
@@ -178,7 +183,7 @@ ModulationConnection::ModulationConnection(ModulationSource* _source, Modulation
   //else
   //  depth = 0.5 * (depthMin + depthMax);
 
-  juce::String name = source->getModulationSourceName();
+  juce::String name = source->getModulationSourceName(); // should we use the displayName here?
   depthParam = new MetaControlledParameter(name, depthMin, depthMax, depth, Parameter::LINEAR, 0.0);
   depthParam->setValueChangeCallback<ModulationConnection>(
     this, &ModulationConnection::setDepthMember);
@@ -404,7 +409,8 @@ void ModulationManager::deRegisterAllTargets()
     deRegisterModulationTarget(availableTargets[size(availableTargets)-1]);
 }
 
-bool ModulationManager::isConnected(ModulationSource* source, ModulationTarget* target)
+bool ModulationManager::isConnected(const ModulationSource* source, 
+  const ModulationTarget* target) const
 {
   ScopedLock scopedLock(*modLock); 
   return getConnectionBetween(source, target) != nullptr;
@@ -417,8 +423,8 @@ bool ModulationManager::isConnected(ModulationSource* source, ModulationTarget* 
   */
 }
 
-ModulationConnection* ModulationManager::getConnectionBetween(ModulationSource* source, 
-  ModulationTarget* target)
+ModulationConnection* ModulationManager::getConnectionBetween(const ModulationSource* source, 
+  const ModulationTarget* target) const
 {
   ScopedLock scopedLock(*modLock); 
   for(int i = 0; i < size(modulationConnections); i++)

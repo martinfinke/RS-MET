@@ -39,7 +39,7 @@ public:
   /** Returns the gravitational potential at position vector p due to this particle. The potential 
   is a scalar field whose negative gradient gives the gravitational (vector-) field. Multiplying 
   the potential with a test-mass (assumed to be at the given position) gives the potential energy 
-  of the test-mass. */
+  of the test-mass (...hmm...well...up to a factor of 2 and only in static situations). */
   T getGravitationalPotentialAt(rsVector3D<T> p, T gravitationalConstant = 1);
 
   /** Returns the electric potential at position vector p due to this particle. The potential is
@@ -47,6 +47,31 @@ public:
   a test-charge (assumed to be at the given position) gives the potential energy of the
   test-charge. */
   T getElectricPotentialAt(rsVector3D<T> p, T electricConstant = 1);
+
+  /** Returns the magnetic potential at position vector p due to this particle. The magnetic 
+  potential is a vector field whose curl gives the magnetic field. the vector potential is not 
+  uniquely determined - you can add any vector field with zero curl and still get the same magnetic 
+  field. Curl-free vector fields can be expressed as gradient of some scalar field, so the vector 
+  potential is determined only up to a gradient of a scalar field. Here, we choose the gradient 
+  field to be zero. */
+  rsVector3D<T> getMagneticPotentialAt(rsVector3D<T> p, T magneticConstant = 1);
+
+
+  /** Returns the gravitational potential energy of the passed particle p in the field of this 
+  particle. */
+  T getGravitationalEnergy(const rsParticle<T>& p, T gravitationalConstant = 1);
+
+  /** Returns the electrical potential energy of the passed particle p in the field of this 
+  particle. */
+  T getElectricEnergy(const rsParticle<T>& p, T electricConstant = 1);
+
+  /** Returns the magnetic potential energy of the passed particle p in the field of this 
+  particle. */
+  T getMagneticEnergy(const rsParticle<T>& p, T magneticConstant = 1);
+  // todo: verify these formulas....they are supposed to hold up only in static situations (see 
+  // (2), page 15.7 at the top)...maybe there are also formulas that work for dynmaic situations? 
+  // ..try to .figure out...see (2), page 15.15
+
 
   // todo: write function for magnetic potential (this is vector valued), figure out, if there's 
   // something like magnetic potential energy, have functions to compute potential energies of 
@@ -58,8 +83,10 @@ public:
 
   rsVector3D<T> pos;  // position
   rsVector3D<T> vel;  // velocity
-  T mass = 1;
+  T mass   = 1;
   T charge = 1;
+  T size   = 1;       // to avoid force singularities
+  // maybe have some kind of spin / angular-velocity (a vector)
 };
 
 //=================================================================================================
@@ -110,18 +137,21 @@ public:
   /** Sets the exponent, by which the force law (asymptotically) depends inversely on the 
   distance. For example, with a value of 2, the force between two particles depends on the distance 
   d between them (asympticically) proportionally to 1/d^2 - this is the physically correct 
-  inverse-square law. The dependence is only asymptotic, because we alos have the offsset set by
+  inverse-square law. The dependence is only asymptotic, because we also have the offsset set by
   setForceLawOffset - if this offset is zero, the dependence is not asymptotic but exact. */
   void setForceLawExponent(T newExponent) { p = newExponent+1; }
     // +1 because our formulas assume that the distance d appears in the numerator, because
     // we don't want to use the formula that uses the normalized distance vector (because the
     // normalization itself can cause a div-by-0)
+    // todo: maybe express the exponent non-inverse, i.e. when the user wants an inverse-square
+    // law, he should pass -2 instead of 2, then a value of 1 corresponds to Hooke's law
+    // -> more convenient than the implicit inversion
 
   /** Sets an offset for the force-law which is mainly intended to avoid divisions-by-zero which
   would otherwise occur when the distance between two particles becomes zero. The value should be
   strictly positive. If you pass 0 (and the exponent is 2), you'll have the physically correct
   1/d^2 law - but this may lead to divisions by zero. */
-  void setForceLawOffset(T newOffset) { c = newOffset; }
+  //void setForceLawOffset(T newOffset) { c = newOffset; }
 
   // makeTotalMomentumZero, makeCenterOfMassZero
 
@@ -129,6 +159,12 @@ public:
   // \name Inquiry
 
   T getKineticEnergy();
+
+  T getGravitationalPotentialEnergy();
+
+  T getElectricPotentialEnergy();
+
+  T getMagneticPotentialEnergy();
 
   T getPotentialEnergy(); // this does not work yet
 
@@ -142,7 +178,14 @@ public:
   //-----------------------------------------------------------------------------------------------
   /** \name Processing */
 
-  T getForceScalerByDistance(T distance);
+  /** Returns a scaler for the force based on the distance d. The complete ditance-to-force law 
+  will be the value returned by that function times the distance itself (this is, so we can use 
+  formulas with unnormalized difference vectors - which have the distance in the numerator, 
+  too). */
+  T getForceScalerByDistance(T distance, T size1, T size2);
+
+  /** Returns the force for a given distance. Mainly meant for making plots. */
+  T getForceByDistance(T distance, T size1, T size2);
 
   /** Computes the force that particle p1 experiences due to the presence of particle p2. */
   rsVector3D<T> getForceBetween(const rsParticle<T>& p1, const rsParticle<T>& p2);
@@ -181,7 +224,7 @@ protected:
   std::vector<rsVector3D<T>> forces;
   T stepSize = T(0.01);
   T cG = 1, cE = 1, cM = 1; // gravitational, electric, magnetic constants
-  T c = 0, p = 3;           // force-by-distance-law parameters
+  T p = 3;                  // force-by-distance-law exponent/power
 
 };
 
