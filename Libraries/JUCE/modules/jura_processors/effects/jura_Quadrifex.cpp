@@ -155,6 +155,9 @@ void QuadrifexAudioModule::setEffectAlgorithm(int slotIndex, int newAlgorithmInd
     return;
 
   // store the state of the old effect to be replaced:
+  // this code is horrible - can we replace this maybe with something based on an associative
+  // array, like std::map?
+
   int oldAlgorithmIndex = wrappedQuadrifex->getEffectAlgorithmIndex(slotIndex);
   switch( oldAlgorithmIndex )
   {
@@ -1154,19 +1157,15 @@ void QuadrifexRoutingDiagram::mouseDown(const MouseEvent &e)
       QuadrifexModuleEditor *qme = static_cast<QuadrifexModuleEditor*> (getParentComponent());
       qme->openEffectSelectionMenuForSlot(slotIndex, Point<int>(getX()+e.x, getY()+e.y));
 
-      /*
       // toggle between mute, bypass and some effect:
-      if( algorithmIndices[slotIndex] == rosic::Quadrifex::MUTE )
-      algorithmIndices[slotIndex] = rosic::Quadrifex::BYPASS;
-      else if( algorithmIndices[slotIndex] == rosic::Quadrifex::BYPASS )
-      algorithmIndices[slotIndex] = oldAlgorithmIndices[slotIndex];
-      else
-      {
-      oldAlgorithmIndices[slotIndex] = algorithmIndices[slotIndex];
-      algorithmIndices[slotIndex]    = rosic::Quadrifex::MUTE;
-      }
+      if(algorithmIndices[slotIndex] == rosic::Quadrifex::MUTE)
+        algorithmIndices[slotIndex] = rosic::Quadrifex::BYPASS;
+      else if(algorithmIndices[slotIndex] == rosic::Quadrifex::BYPASS)
+        algorithmIndices[slotIndex] = oldAlgorithmIndices[slotIndex];
+      else {
+        oldAlgorithmIndices[slotIndex] = algorithmIndices[slotIndex];
+        algorithmIndices[slotIndex] = rosic::Quadrifex::MUTE; }
       repaint();
-      */
     }
     else if( e.mods.isRightButtonDown() )
     {
@@ -1959,8 +1958,9 @@ void QuadrifexModuleEditor::paint(Graphics &g)
 
   int x = globalRectangle.getX(); // + middleRectangle.getWidth()/2;
   int y = globalRectangle.getY();
-  //drawBitmapFontText(g, x+4, y+4, juce::String(("Global Settings")), BigFont::getInstance(),
-  //  editorColourScheme.labelTextColour);
+
+  //drawBitmapFontText(g, x+4, y+4, juce::String(("Global Settings")), 
+  //  &BitmapFontRoundedBoldA16D0::instance, editorColourScheme.headline);
 
   if( quadrifexModuleToEdit == NULL )
     return;
@@ -1978,7 +1978,8 @@ void QuadrifexModuleEditor::paint(Graphics &g)
     y = slotRectangles[i].getY();
     juce::String headlineString = juce::String(i+1) + juce::String((" - ")) +
       quadrifexModuleToEdit->effectAlgorithmIndexToString(core->getEffectAlgorithmIndex(i));
-    drawBitmapFontText(g, x+4, y+4, headlineString, &BitmapFontRoundedBoldA10D0::instance,
+
+    drawBitmapFontText(g, x+4, y+4, headlineString, &BitmapFontRoundedBoldA16D0::instance,
       editorColourScheme.headline);
   }
 }
@@ -2064,7 +2065,8 @@ void QuadrifexModuleEditor::openEffectSelectionMenuForSlot(int slotIndex, juce::
   Point<int> thisPosistion = getScreenPosition();
   int x = thisPosistion.getX() + menuPosition.getX();
   int y = thisPosistion.getY() + menuPosition.getY();
-  effectSelectionPopup->showAt(false, x, y, 200, 400);
+  //effectSelectionPopup->showAt(false, x, y, 200, 400);
+  effectSelectionPopup->showAt(true, x, y, 200, 400); // modal-state must be true, otherwise it's not shown
 }
 
 int QuadrifexModuleEditor::getSlotIndexAtPixelPosition(int x, int y)

@@ -290,14 +290,14 @@ public:
 
   /** Convenience function to set up all the range/depth/mode parameters at once. */
   inline void setDefaultModParameters(double newRangeMin, double newRangeMax, 
-    double newDefaultDepthMin, double newDefaultDepthMax, bool shouldBeRelativeByDefault, 
+    double newDefaultDepthMin, double newDefaultDepthMax, int defaultMode, 
     double initialModDepth = 0.0)
   {
     rangeMin = newRangeMin;
     rangeMax = newRangeMax;
     defaultDepthMin = newDefaultDepthMin;
     defaultDepthMax = newDefaultDepthMax;
-    defaultRelative = shouldBeRelativeByDefault;
+    defaultModMode  = defaultMode;
     initialDepth    = initialModDepth;
   }
 
@@ -320,9 +320,10 @@ public:
   /** Returns the initial modulation depth that will be used for new incoming connections. */
   inline double getInitialModulationDepth() const { return initialDepth;    }
 
-  /** Returns whether or not a new connection into this target should be to relative (it will be 
-  absolute, if false is passed). */
-  inline bool   isModulationRelativeByDefault() const { return defaultRelative; }
+  /** Returns the default modulation mode which is the mode that a newly connected connection to 
+  this target will have. This can be any of the values defined in 
+  ModulationConnection::modModes. */
+  inline int getDefaultModulationMode() const { return defaultModMode; } 
 
   /** Returns true, if there's a connection between this ModulationTarget and the given 
   ModulationSource. */
@@ -377,7 +378,7 @@ protected:
   double rangeMin = -INF, rangeMax = INF; 
   double defaultDepthMin = -1, defaultDepthMax = 1;
   double initialDepth = 0.0;
-  bool   defaultRelative = false;
+  int    defaultModMode = 0; // absolute
 
   friend class ModulationConnection;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulationTarget)
@@ -392,6 +393,15 @@ class JUCE_API ModulationConnection
 {
 
 public:
+
+  /** Selects one of the modes in which the modulation can be applied. In the formulas below, u is
+  the unmodulated base value, m the modulator output and d the modulation depth. */
+  enum modModes
+  {
+    ABSOLUTE = 0,  // d * m
+    RELATIVE,      // d * m * u
+    EXPONENTIAL    // u * 2^(d*m) - u
+  };
 
   /** Constructor. You should pass a ModulationSource and a ModulationTarget. If you want to enable
   meta-control for the modulation-depth associated with the connection, you may pass the pointer to
@@ -417,31 +427,31 @@ public:
     depthParam->setRangeAndValue(newMin, newMax, newValue, true, true);
   }
 
-  /** Sets the parameter to relative mode in which case the output signal of the ModulationSource
-  will be multiplied by the ModulationTarget's unmodulated nominal value before being added to the 
-  target value. */
-  inline void setRelative(bool shouldBeRelative)
-  {
-    relative = shouldBeRelative;
-  }
+  /** Sets the mode in which this connection should apply the modulation source output value to the
+  modualtion target. @see modModes. */
+  inline void setMode(int newMode) { mode = newMode; }
 
-  inline bool isRelative() const
-  {
-    return relative;
-  }
-
+  /** Returns the modulation mode of this connection. */
+  inline int getMode() { return mode; }
+    
   /** Returns the Parameter object that controls the amount of modulation */
   MetaControlledParameter* getDepthParameter() const { return depthParam; }
 
   /** Applies the source-value to the target-value with given amount. */
   inline void apply()
   {
-    // optimize away later:
-    double scaler = 1; // make this a member
-    if(relative)
-      scaler = target->unmodulatedValue;
-
-    *targetValue += *sourceValue * depth * scaler; // only this line shall remain after optimization
+    double m = *sourceValue;
+    double d = depth;
+    double u = target->unmodulatedValue;
+    double z;
+    switch(mode)  // maybe use function pointer instead of switch
+    {
+    case ABSOLUTE:    z = d * m;             break;
+    case RELATIVE:    z = d * m * u;         break;
+    case EXPONENTIAL: z = u * exp2(d*m) - u; break; // maybe rename function to pow2
+    default:          z = 0;
+    }
+    *targetValue += z;
   }
 
 
@@ -457,27 +467,20 @@ public:
 
 protected:
 
-  /** Sets the modulation depth for this connection. Used a target callback in the depthParam. To 
-  keep our "depth" member consistent with the value of the "depthParam" Parameter object, outside
-  code should use setDepth.
-  Should not be used in state-recall because then, the depthParam won't be updated. 
-  ToDo: rename this to setDepthInternal (or something) and provide a setDepth implementation that 
-  *can* be used in state-recall. */
-  void setDepthMember(double newDepth)
-  {
-    depth = newDepth;
-  }
-
+  /** Sets the modulation depth for this connection. Used as target callback in the depthParam. To 
+  keep our "depth" member consistent with the value of the "depthParam" Parameter object. This is 
+  used only internally, client code should use setDepth. */
+  void setDepthMember(double newDepth) { depth = newDepth; }
 
   ModulationSource* source;
   ModulationTarget* target;
-  double* sourceValue;
-  double* targetValue;
-  double depth;
-  bool relative;
+  double* sourceValue;       // pointer to modulation source output signal
+  double* targetValue;       // pointer to target value
+  double depth;              // modulation depth
+  int mode = ABSOLUTE;       // application mode for modulation signal
 
   MetaControlledParameter* depthParam; // maybe it should be a ModulatableParameter? but that may
-                                        // raise some issues - maybe later...
+                                       // raise some issues - maybe later...
 
   friend class ModulationTarget;
   friend class ModulationManager;
